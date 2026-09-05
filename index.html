@@ -12,7 +12,7 @@
 
         .badge { padding: 5px 10px; border-radius: 6px; font-weight: bold; text-align: center; }
         .stat-val { font-size: 15px; font-weight: bold; }
-        .green { color: #2ecc71; }
+        .green { color: #1ab814; }
         .yellow { color: #f1c40f; }
 
         #selectionScreen { display: flex; flex-direction: column; height: 100%; padding-bottom: 80px; }
@@ -62,7 +62,10 @@
         .card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 4px; }
         .card-cell { background: #f8f9fa; border: 1px solid #ddd; text-align: center; padding: 6px 0; font-weight: bold; font-size: 10px; cursor: pointer; border-radius: 3px; }
         .card-cell.marked { background: #28a745; color: white; }
+        .card-cell.matched-call { border: 2px solid #e74c3c; animation: pulse 1s infinite alternate; }
         .card-cell.free { background: #ff9800; color: white; font-size: 10px; }
+
+        @keyframes pulse { 0% { transform: scale(0.98); } 100% { transform: scale(1.03); } }
 
         .bingo-btn { background: #007bff; color: white; width: 100%; border: none; padding: 8px; font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; border-radius: 0 0 8px 8px; }
         .game-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a2332; color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; z-index: 100; }
@@ -91,11 +94,7 @@
         .mini-card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
         .mini-cell { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 5px 0; font-size: 11px; font-weight: bold; color: #7f8c8d; }
         .mini-cell.hit-green { background: #27ae60; color: white; border-color: #27ae60; }
-        .mini-cell.hit-yellow { background: #f1c40f; color: black; border-color: #f1c40f; }
         .mini-cell.star { background: #333; color: white; }
-        .next-round-bar { background: #e1e2e6; border-radius: 10px; height: 25px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
-        .next-round-progress { position: absolute; left: 0; top: 0; bottom: 0; background: #f1c40f; width: 100%; transition: width 1s linear; }
-        .next-round-text { position: relative; z-index: 2; font-size: 9px; font-weight: bold; color: #2c3e50; }
     </style>
 </head>
 <body>
@@ -146,7 +145,7 @@
                         <div class="small-ball">-</div>
                         <div class="small-ball">-</div>
                     </div>
-                    <div class="current-ball" id="currentBallDisplay">START</div>
+                    <div class="current-ball" id="currentBallDisplay">READY</div>
                 </div>
                 <div class="cards-wrapper" id="userCardsContainer"></div>
             </div>
@@ -176,9 +175,9 @@
                 </div>
                 <div class="mini-card-grid" id="miniWinnerGrid"></div>
             </div>
-            <div class="next-round-bar">
-                <div class="next-round-progress" id="progressBar"></div>
-                <div class="next-round-text">NEXT ROUND: <span id="nextSecs">5</span>S</div>
+            <div class="next-round-bar" style="background:#e1e2e6; border-radius:10px; height:25px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
+                <div id="progressBar" style="position:absolute; left:0; top:0; bottom:0; background:#f1c40f; width:100%; transition:width 1s linear;"></div>
+                <div style="position:relative; z-index:2; font-size:9px; font-weight:bold; color:#2c3e50;">NEXT ROUND: <span id="nextSecs">5</span>S</div>
             </div>
         </div>
     </div>
@@ -187,16 +186,16 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Render ላይ ያገኘኸው የ Backend URL
         const BACKEND_URL = "https://cherbingo-backend.onrender.com"; 
-        const socket = io(BACKEND_URL); 
+        const socket = io(BACKEND_URL, { autoConnect: true }); 
 
-        let userId = tg.initDataUnsafe?.user?.id || Math.floor(Math.random() * 100000);
+        let userId = tg.initDataUnsafe?.user?.id || Math.floor(100000 + Math.random() * 900000);
         let userName = tg.initDataUnsafe?.user?.first_name || "ተጫዋች";
 
         let selectedCards = [null, null];
         let userCardsData = {};
         let recentBalls = [];
+        let calledNumbers = new Set();
 
         const selectionGrid = document.getElementById('selectionGrid');
         for (let i = 1; i <= 400; i++) {
@@ -286,9 +285,11 @@
             initGameBoard();
             
             const chosen = selectedCards.filter(c => c !== null);
-            socket.emit('getUserCards', { chosenCards: chosen }, (cardsData) => {
-                userCardsData = cardsData;
-                renderUserSelectedCards();
+            socket.emit('getUserCards', { chosenCards: chosen, userId }, (cardsData) => {
+                if(cardsData) {
+                    userCardsData = cardsData;
+                    renderUserSelectedCards();
+                }
             });
         }
 
@@ -331,15 +332,21 @@
                 userCardsData[cardNo].forEach(item => {
                     let cell = document.createElement('div');
                     cell.className = 'card-cell';
+                    cell.setAttribute('data-val', item);
                     cell.innerText = item === '★' ? '★' : item;
-                    if (item === '★') cell.classList.add('free', 'marked');
-                    cell.onclick = () => cell.classList.toggle('marked');
+                    
+                    if (item === '★') {
+                        cell.classList.add('free', 'marked');
+                    } else {
+                        cell.onclick = () => cell.classList.toggle('marked');
+                    }
                     cardGrid.appendChild(cell);
                 });
             });
         }
 
         socket.on('newBall', (data) => {
+            calledNumbers.add(data.num);
             document.getElementById('ballsCount').innerText = data.ballsCalled;
             document.getElementById('currentBallDisplay').innerText = data.letter + "-" + data.num;
 
@@ -356,6 +363,13 @@
                 div.className = 'small-ball';
                 div.innerText = b;
                 recentArea.appendChild(div);
+            });
+
+            // Highlight matches on player's cards
+            document.querySelectorAll('.card-cell').forEach(cell => {
+                if (cell.getAttribute('data-val') == data.num) {
+                    cell.classList.add('matched-call');
+                }
             });
         });
 
