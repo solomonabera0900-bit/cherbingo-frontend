@@ -3,263 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CherBingo Live</title>
+    <title>Cherbingo Mini App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --accent: #ff9800;
-            --text: #ffffff;
-            --selected: #4caf50;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
-            margin: 0;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .header {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
             text-align: center;
-            margin-bottom: 10px;
+            padding: 20px;
         }
-
-        .drawn-box {
-            background-color: var(--card-bg);
-            border: 2px solid var(--accent);
+        .card {
+            background-color: #1e1e1e;
             border-radius: 12px;
-            padding: 10px 20px;
-            text-align: center;
-            width: 90%;
-            max-width: 350px;
-            margin-bottom: 15px;
-        }
-
-        .drawn-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--accent);
-        }
-
-        /* BINGO CARD GRID */
-        .bingo-board {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 5px;
-            width: 100%;
-            max-width: 350px;
-            background-color: var(--card-bg);
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-
-        .cell-header {
-            font-weight: bold;
-            color: var(--accent);
-            text-align: center;
-            padding: 10px 0;
-            font-size: 1.2rem;
-        }
-
-        .cell {
-            background-color: #2a2a2a;
-            border-radius: 8px;
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            transition: background-color 0.2s;
-        }
-
-        .cell.marked {
-            background-color: var(--selected);
-            color: #fff;
-        }
-
-        .cell.free {
-            background-color: #333;
-            color: var(--accent);
-            font-size: 0.8rem;
-        }
-
-        .btn-bingo {
+            padding: 20px;
             margin-top: 20px;
-            width: 100%;
-            max-width: 350px;
-            padding: 15px;
-            background-color: #e91e63;
+        }
+        button {
+            background-color: #0088cc;
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 1.5rem;
-            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-
-        .btn-bingo:active {
-            transform: scale(0.98);
-        }
-
-        .status-msg {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #aaa;
-            text-align: center;
+            width: 100%;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <h2>🎲 CherBingo Live</h2>
-        <div id="user-info"></div>
+    <h1>🎰 Cherbingo</h1>
+    <div class="card">
+        <h3 id="user-name">እንኳን በደህና መጡ!</h3>
+        <p>ቀሪ ሂሳብ፦ <span id="balance">0.00</span> ETB</p>
+        <button onclick="startGame()">እቃ በ 10 ETB ይግዙ (Play)</button>
     </div>
-
-    <!-- የወጣው ቁጥር ማሳያ -->
-    <div class="drawn-box">
-        <div style="font-size: 0.8rem; color: #888;">የወጣው ቁጥር</div>
-        <div class="drawn-number" id="current-number">--</div>
-    </div>
-
-    <!-- 5x5 የቢንጎ ካርድ -->
-    <div class="bingo-board" id="bingo-board">
-        <div class="cell-header">B</div>
-        <div class="cell-header">I</div>
-        <div class="cell-header">N</div>
-        <div class="cell-header">G</div>
-        <div class="cell-header">O</div>
-        <!-- Cells dynamically injected -->
-    </div>
-
-    <button class="btn-bingo" onclick="claimBingo()">BINGO! 🏆</button>
-    <div class="status-msg" id="status-msg">ከጨዋታው ጋር በመገናኘት ላይ...</div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Mini App ሙሉ ስክሪን እንዲሆን
+        tg.expand();
 
-        // የ Backend URL (Render, Railway, ወይም የእርስዎ Server URL)
-        const BACKEND_URL = "https://your-cherbingo-backend.onrender.com"; 
-        const socket = io(BACKEND_URL);
-
-        const userData = tg.initDataUnsafe?.user || { id: 12345, first_name: "TestUser" };
-        document.getElementById('user-info').innerText = `ተጫዋች: ${userData.first_name}`;
-
-        let myCard = [];
-        let markedCells = Array(5).fill(null).map(() => Array(5).fill(false));
-        const roomId = "play"; // default room (play, super, bonus)
-
-        // 1. 5x5 የቢንጎ ካርድ ማመንጨት
-        function generateBingoCard() {
-            const columns = [
-                getRandomNumbers(1, 15, 5),
-                getRandomNumbers(16, 30, 5),
-                getRandomNumbers(31, 45, 5),
-                getRandomNumbers(46, 60, 5),
-                getRandomNumbers(61, 75, 5)
-            ];
-
-            let card = [];
-            for (let r = 0; r < 5; r++) {
-                let row = [];
-                for (let c = 0; c < 5; c++) {
-                    if (r === 2 && c === 2) {
-                        row.push('FREE');
-                    } else {
-                        row.push(columns[c][r]);
-                    }
-                }
-                card.push(row);
-            }
-            return card;
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            document.getElementById('user-name').innerText = `ሰላም፣ ${user.first_name}!`;
         }
 
-        function getRandomNumbers(min, max, count) {
-            let nums = [];
-            while (nums.length < count) {
-                let r = Math.floor(Math.random() * (max - min + 1)) + min;
-                if (!nums.includes(r)) nums.push(r);
-            }
-            return nums;
-        }
-
-        // 2. ካርዱን በ UI ላይ ማሳየት
-        function renderBoard() {
-            const boardEl = document.getElementById('bingo-board');
-            // Remove old cells except headers
-            const cells = boardEl.querySelectorAll('.cell');
-            cells.forEach(c => c.remove());
-
-            for (let r = 0; r < 5; r++) {
-                for (let c = 0; c < 5; c++) {
-                    const val = myCard[r][c];
-                    const cellDiv = document.createElement('div');
-                    cellDiv.classList.add('cell');
-                    
-                    if (val === 'FREE') {
-                        cellDiv.classList.add('free', 'marked');
-                        cellDiv.innerText = 'FREE';
-                        markedCells[r][c] = true;
-                    } else {
-                        cellDiv.innerText = val;
-                        cellDiv.onclick = () => toggleMark(r, c, cellDiv);
-                    }
-                    
-                    boardEl.appendChild(cellDiv);
-                }
-            }
-        }
-
-        function toggleMark(r, c, element) {
-            markedCells[r][c] = !markedCells[r][c];
-            element.classList.toggle('marked');
-        }
-
-        // 3. Socket.io ክስተቶች
-        myCard = generateBingoCard();
-        renderBoard();
-
-        socket.on('connect', () => {
-            document.getElementById('status-msg').innerText = "✅ ከጨዋታው ጋር ተገናኝቷል!";
-            socket.emit('join_room', {
-                roomId: roomId,
-                userId: userData.id,
-                userName: userData.first_name,
-                card: myCard
-            });
-        });
-
-        socket.on('number_drawn', (data) => {
-            document.getElementById('current-number').innerText = data.number;
-        });
-
-        socket.on('bingo_winner', (data) => {
-            alert(data.message);
-            document.getElementById('status-msg').innerText = data.message;
-        });
-
-        socket.on('bingo_rejected', (data) => {
-            alert(data.message);
-        });
-
-        function claimBingo() {
-            socket.emit('claim_bingo', {
-                roomId: roomId,
-                card: myCard
-            });
+        function startGame() {
+            tg.showAlert("ጨዋታው በቅርቡ ይጀምራል!");
         }
     </script>
 </body>
