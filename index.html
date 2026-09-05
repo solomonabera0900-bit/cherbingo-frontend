@@ -77,9 +77,8 @@
         .winner-card-container {
             background: #ffffff; border: 4px solid #f1c40f; border-radius: 20px;
             width: 100%; max-width: 350px; padding: 20px 15px; text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; animation: popIn 0.3s ease-out;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative;
         }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .winner-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
         .winner-badge-num { color: #e74c3c; font-size: 24px; }
         .winner-amount { color: #e74c3c; font-size: 20px; }
@@ -175,7 +174,7 @@
                 </div>
                 <div class="mini-card-grid" id="miniWinnerGrid"></div>
             </div>
-            <div class="next-round-bar" style="background:#e1e2e6; border-radius:10px; height:25px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
+            <div style="background:#e1e2e6; border-radius:10px; height:25px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
                 <div id="progressBar" style="position:absolute; left:0; top:0; bottom:0; background:#f1c40f; width:100%; transition:width 1s linear;"></div>
                 <div style="position:relative; z-index:2; font-size:9px; font-weight:bold; color:#2c3e50;">NEXT ROUND: <span id="nextSecs">5</span>S</div>
             </div>
@@ -255,6 +254,21 @@
             document.getElementById('playersCount').innerText = data.playersCount;
             document.getElementById('derashVal').innerText = (data.soldCards.length * 20) + " ETB";
 
+            // 3. በመሃል ለሚገባ ተጫዋች የክትትል ቦታ (Waiting View)
+            if (data.status === 'PLAYING' && selectedCards.every(c => c === null)) {
+                document.getElementById('selectionScreen').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'flex';
+                initGameBoard();
+
+                const container = document.getElementById('userCardsContainer');
+                container.innerHTML = `
+                    <div style="text-align:center; padding: 20px; background: #fff; border-radius: 8px; margin-top: 15px; border: 2px dashed #e67e22; width: 100%;">
+                        <h3 style="color: #e67e22; margin-bottom: 8px; font-size: 13px;">WAITING FOR THE NEXT ROUND...</h3>
+                        <p style="font-size: 11px; color: #7f8c8d;">ጨዋታው ተጀምሯል። ቀጣዩ ዙር እስኪጀምር ቁጥሮችን መከታተል ይችላሉ።</p>
+                    </div>
+                `;
+            }
+
             data.soldCards.forEach(cardNum => {
                 const btn = document.getElementById('select-' + cardNum);
                 if (btn && !selectedCards.includes(cardNum)) {
@@ -263,20 +277,37 @@
             });
         });
 
+        socket.on('roomReset', () => {
+            selectedCards = [null, null];
+            userCardsData = {};
+            recentBalls = [];
+            calledNumbers.clear();
+
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('winnerModal').style.display = 'none';
+            document.getElementById('selectionScreen').style.display = 'flex';
+
+            document.querySelectorAll('.card-btn').forEach(btn => btn.className = 'card-btn');
+            clearSlot(1);
+            clearSlot(2);
+        });
+
         socket.on('startCountdown', () => {
-            document.getElementById('selectionScreen').style.display = 'none';
-            document.getElementById('countdownScreen').style.display = 'flex';
-            let count = 3;
-            const countNumElement = document.getElementById('countdownNumber');
-            const timer = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    countNumElement.innerText = count;
-                } else {
-                    clearInterval(timer);
-                    startGame();
-                }
-            }, 1000);
+            if (selectedCards.some(c => c !== null)) {
+                document.getElementById('selectionScreen').style.display = 'none';
+                document.getElementById('countdownScreen').style.display = 'flex';
+                let count = 3;
+                const countNumElement = document.getElementById('countdownNumber');
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countNumElement.innerText = count;
+                    } else {
+                        clearInterval(timer);
+                        startGame();
+                    }
+                }, 1000);
+            }
         });
 
         function startGame() {
@@ -303,6 +334,7 @@
                     cell.className = 'game-cell';
                     cell.id = 'grid-cell-' + num;
                     cell.innerText = num;
+                    if (calledNumbers.has(num)) cell.classList.add('active');
                     gameGrid.appendChild(cell);
                 }
             }
@@ -365,7 +397,6 @@
                 recentArea.appendChild(div);
             });
 
-            // Highlight matches on player's cards
             document.querySelectorAll('.card-cell').forEach(cell => {
                 if (cell.getAttribute('data-val') == data.num) {
                     cell.classList.add('matched-call');
@@ -384,17 +415,6 @@
             document.getElementById('winnerPlayerSub').innerText = data.userName;
             document.getElementById('winningCardNo').innerText = "CARD #" + data.cardNo;
 
-            const miniGrid = document.getElementById('miniWinnerGrid');
-            miniGrid.innerHTML = '';
-            data.cardMatrix.forEach(item => {
-                let cell = document.createElement('div');
-                cell.className = 'mini-cell';
-                cell.innerText = item.v;
-                if (item.status === 'green') cell.classList.add('hit-green');
-                else if (item.status === 'star') cell.classList.add('star');
-                miniGrid.appendChild(cell);
-            });
-
             document.getElementById('winnerModal').style.display = 'flex';
 
             let seconds = 5;
@@ -407,7 +427,6 @@
                 progress.style.width = (seconds / 5 * 100) + '%';
                 if (seconds <= 0) {
                     clearInterval(interval);
-                    location.reload();
                 }
             }, 1000);
         });
