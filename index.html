@@ -195,8 +195,9 @@
         let userCardsData = {};
         let recentBalls = [];
         let calledNumbers = new Set();
+        let currentSoldCards = [];
 
-        // 1-400 ካርቴላዎችን ማፍለቅ (400 Cards Grid)
+        // 1-400 ካርቴላዎችን ማፍለቅ
         const selectionGrid = document.getElementById('selectionGrid');
         for (let i = 1; i <= 400; i++) {
             const btn = document.createElement('div');
@@ -205,6 +206,25 @@
             btn.id = 'select-' + i;
             btn.onclick = () => selectCard(i);
             selectionGrid.appendChild(btn);
+        }
+
+        function updateSoldCardsUI(soldList) {
+            currentSoldCards = soldList || [];
+            document.getElementById('soldCount').innerText = currentSoldCards.length;
+            document.getElementById('derashVal').innerText = (currentSoldCards.length * 20) + " ETB";
+
+            for (let i = 1; i <= 400; i++) {
+                const btn = document.getElementById('select-' + i);
+                if (!btn) continue;
+
+                if (selectedCards.includes(i)) {
+                    btn.className = 'card-btn selected';
+                } else if (currentSoldCards.includes(i)) {
+                    btn.className = 'card-btn sold';
+                } else {
+                    btn.className = 'card-btn';
+                }
+            }
         }
 
         function selectCard(num) {
@@ -233,7 +253,7 @@
             const slot = document.getElementById('slot' + slotNum);
             slot.classList.add('active');
             slot.innerText = `CARD ${cardNum} (❌ ሰርዝ)`;
-            document.getElementById('select-' + cardNum).classList.add('selected');
+            document.getElementById('select-' + cardNum).className = 'card-btn selected';
             socket.emit('selectCard', { cardNum, userId });
         }
 
@@ -242,7 +262,7 @@
             const cardNum = selectedCards[index];
             if (cardNum !== null) {
                 const btn = document.getElementById('select-' + cardNum);
-                if (btn) btn.classList.remove('selected');
+                if (btn) btn.className = 'card-btn';
                 socket.emit('deselectCard', { cardNum, userId });
                 selectedCards[index] = null;
                 const slot = document.getElementById('slot' + slotNum);
@@ -251,13 +271,21 @@
             }
         }
 
+        // 1. ከአገልጋይ የሚመጣ ፈጣን የካርቴላ መረጃ ማዘመኛ
+        socket.on('cardUpdated', (data) => {
+            if (data && data.soldCards) {
+                updateSoldCardsUI(data.soldCards);
+            }
+        });
+
+        // 2. አጠቃላይ የክፍል መረጃ ማዳመጫ
         socket.on('roomState', (data) => {
-            document.getElementById('soldCount').innerText = data.soldCards.length;
             document.getElementById('selectionTimer').innerText = data.timeLeft + 's';
             document.getElementById('playersCount').innerText = data.playersCount;
-            document.getElementById('derashVal').innerText = (data.soldCards.length * 20) + " ETB";
+            
+            updateSoldCardsUI(data.soldCards);
 
-            // Spectator Mode (መሃል ላይ ለሚገባ ተጫዋች የሚታይ)
+            // Spectator Mode
             if (data.status === 'PLAYING' && selectedCards.every(c => c === null)) {
                 document.getElementById('selectionScreen').style.display = 'none';
                 document.getElementById('gameScreen').style.display = 'flex';
@@ -271,13 +299,6 @@
                     </div>
                 `;
             }
-
-            data.soldCards.forEach(cardNum => {
-                const btn = document.getElementById('select-' + cardNum);
-                if (btn && !selectedCards.includes(cardNum)) {
-                    btn.classList.add('sold');
-                }
-            });
         });
 
         socket.on('roomReset', () => {
@@ -290,7 +311,7 @@
             document.getElementById('winnerModal').style.display = 'none';
             document.getElementById('selectionScreen').style.display = 'flex';
 
-            document.querySelectorAll('.card-btn').forEach(btn => btn.className = 'card-btn');
+            updateSoldCardsUI([]);
             clearSlot(1);
             clearSlot(2);
         });
@@ -380,7 +401,6 @@
             });
         }
 
-        // በየ 5 ሰከንዱ አዳዲስ ቁጥሮች ሲመጡ
         socket.on('newBall', (data) => {
             calledNumbers.add(data.num);
             document.getElementById('ballsCount').innerText = data.ballsCalled;
@@ -419,7 +439,6 @@
             document.getElementById('winnerPlayerSub').innerText = data.userName || "--";
             document.getElementById('winningCardNo').innerText = "CARD #" + (data.cardNo || "---");
 
-            // የአሸናፊውን ካርድ በሞዳሉ ላይ ማሳየት
             const miniGrid = document.getElementById('miniWinnerGrid');
             miniGrid.innerHTML = '';
             if (data.cardMatrix && Array.isArray(data.cardMatrix)) {
