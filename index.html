@@ -413,11 +413,31 @@
         }
 
         socket.on('gameWinner', (data) => {
-            document.getElementById('winAmountModal').innerText = data.prize;
-            document.getElementById('winPoolModal').innerText = data.prize;
-            document.getElementById('winnerPlayerName').innerText = data.userName;
-            document.getElementById('winnerPlayerSub').innerText = data.userName;
-            document.getElementById('winningCardNo').innerText = "CARD #" + data.cardNo;
+            document.getElementById('winAmountModal').innerText = data.prize || 0;
+            document.getElementById('winPoolModal').innerText = data.prize || 0;
+            document.getElementById('winnerPlayerName').innerText = data.userName || "--";
+            document.getElementById('winnerPlayerSub').innerText = data.userName || "--";
+            document.getElementById('winningCardNo').innerText = "CARD #" + (data.cardNo || "---");
+
+            // የአሸናፊውን ካርድ በሞዳሉ ላይ ማሳየት
+            const miniGrid = document.getElementById('miniWinnerGrid');
+            miniGrid.innerHTML = '';
+            if (data.cardMatrix && Array.isArray(data.cardMatrix)) {
+                data.cardMatrix.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.className = 'mini-cell';
+                    if (val === '★') {
+                        cell.innerText = '★';
+                        cell.classList.add('star');
+                    } else {
+                        cell.innerText = val;
+                        if (calledNumbers.has(val)) {
+                            cell.classList.add('hit-green');
+                        }
+                    }
+                    miniGrid.appendChild(cell);
+                });
+            }
 
             document.getElementById('winnerModal').style.display = 'flex';
 
