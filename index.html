@@ -196,6 +196,7 @@
         let recentBalls = [];
         let calledNumbers = new Set();
 
+        // 1-400 ካርቴላዎችን ማፍለቅ (400 Cards Grid)
         const selectionGrid = document.getElementById('selectionGrid');
         for (let i = 1; i <= 400; i++) {
             const btn = document.createElement('div');
@@ -223,7 +224,8 @@
                 selectedCards[1] = num;
                 updateSlotUI(2, num);
             } else {
-                tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
+                if (tg.showAlert) tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
+                else alert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
             }
         }
 
@@ -239,7 +241,8 @@
             const index = slotNum - 1;
             const cardNum = selectedCards[index];
             if (cardNum !== null) {
-                document.getElementById('select-' + cardNum).classList.remove('selected');
+                const btn = document.getElementById('select-' + cardNum);
+                if (btn) btn.classList.remove('selected');
                 socket.emit('deselectCard', { cardNum, userId });
                 selectedCards[index] = null;
                 const slot = document.getElementById('slot' + slotNum);
@@ -254,7 +257,7 @@
             document.getElementById('playersCount').innerText = data.playersCount;
             document.getElementById('derashVal').innerText = (data.soldCards.length * 20) + " ETB";
 
-            // 3. በመሃል ለሚገባ ተጫዋች የክትትል ቦታ (Waiting View)
+            // Spectator Mode (መሃል ላይ ለሚገባ ተጫዋች የሚታይ)
             if (data.status === 'PLAYING' && selectedCards.every(c => c === null)) {
                 document.getElementById('selectionScreen').style.display = 'none';
                 document.getElementById('gameScreen').style.display = 'flex';
@@ -264,7 +267,7 @@
                 container.innerHTML = `
                     <div style="text-align:center; padding: 20px; background: #fff; border-radius: 8px; margin-top: 15px; border: 2px dashed #e67e22; width: 100%;">
                         <h3 style="color: #e67e22; margin-bottom: 8px; font-size: 13px;">WAITING FOR THE NEXT ROUND...</h3>
-                        <p style="font-size: 11px; color: #7f8c8d;">ጨዋታው ተጀምሯል። ቀጣዩ ዙር እስኪጀምር ቁጥሮችን መከታተል ይችላሉ።</p>
+                        <p style="font-size: 11px; color: #7f8c8d;">ጨዋታው ተጀምሯል። ቀጣዩ ዙር እስኪጀምር ተመልካች ሆነው ይከታተሉ።</p>
                     </div>
                 `;
             }
@@ -377,6 +380,7 @@
             });
         }
 
+        // በየ 5 ሰከንዱ አዳዲስ ቁጥሮች ሲመጡ
         socket.on('newBall', (data) => {
             calledNumbers.add(data.num);
             document.getElementById('ballsCount').innerText = data.ballsCalled;
