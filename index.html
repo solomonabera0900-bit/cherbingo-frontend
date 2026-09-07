@@ -182,14 +182,17 @@
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
 
         const BACKEND_URL = "https://cherbingo-backend.onrender.com"; 
         const socket = io(BACKEND_URL, { autoConnect: true }); 
 
-        let userId = tg.initDataUnsafe?.user?.id || Math.floor(100000 + Math.random() * 900000);
-        let userName = tg.initDataUnsafe?.user?.first_name || "ተጫዋች";
+        let userId = tg?.initDataUnsafe?.user?.id || Math.floor(100000 + Math.random() * 900000);
+        let userName = tg?.initDataUnsafe?.user?.first_name || "ተጫዋች";
 
         let selectedCards = [null, null];
         let userCardsData = {};
@@ -207,6 +210,18 @@
             btn.onclick = () => selectCard(i);
             selectionGrid.appendChild(btn);
         }
+
+        // Socket ከተገናኘ በኋላ የቦቱን Balance መጠየቅ
+        socket.on('connect', () => {
+            socket.emit('getUserBalance', { userId });
+        });
+
+        // የ Balance መረጃ በዓይነት ሲመጣ ማዘመን
+        socket.on('userBalanceUpdate', (data) => {
+            if (data && data.balance !== undefined) {
+                document.getElementById('userBalance').innerText = Number(data.balance).toFixed(2);
+            }
+        });
 
         function updateSoldCardsUI(soldList) {
             currentSoldCards = soldList || [];
@@ -244,7 +259,7 @@
                 selectedCards[1] = num;
                 updateSlotUI(2, num);
             } else {
-                if (tg.showAlert) tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
+                if (tg && tg.showAlert) tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
                 else alert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
             }
         }
@@ -254,7 +269,7 @@
             slot.classList.add('active');
             slot.innerText = `CARD ${cardNum} (❌ ሰርዝ)`;
             document.getElementById('select-' + cardNum).className = 'card-btn selected';
-            socket.emit('selectCard', { cardNum, userId });
+            socket.emit('selectCard', { cardNum, userId, userName });
         }
 
         function clearSlot(slotNum) {
@@ -314,6 +329,9 @@
             updateSoldCardsUI([]);
             clearSlot(1);
             clearSlot(2);
+
+            // ቀሪ ሂሳብን እንደገና ማደስ
+            socket.emit('getUserBalance', { userId });
         });
 
         socket.on('startCountdown', () => {
