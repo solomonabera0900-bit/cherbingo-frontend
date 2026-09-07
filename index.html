@@ -1,471 +1,478 @@
 <!DOCTYPE html>
 <html lang="am">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Chernet Bingo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CherBingo Live</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #e9eef5; color: #333; height: 100vh; overflow: hidden; position: relative; }
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+        .badge { padding: 5px 10px; border-radius: 6px; font-weight: bold; text-align: center; }
+        .stat-val { font-size: 15px; font-weight: bold; }
+        .green { color: #1ab814; }
+        .yellow { color: #f1c40f; }
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+        #selectionScreen { display: flex; flex-direction: column; height: 100%; padding-bottom: 80px; }
+        .selection-top-bar { display: flex; justify-content: space-between; align-items: center; background: #1a2332; color: white; padding: 10px; font-size: 11px; }
+        .grid-container {
+            display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 10px;
+            overflow-y: auto; background: #fff; margin: 10px; border-radius: 10px; flex-grow: 1;
+        }
+        .card-btn { background: #fff; border: 1px solid #dcdde1; border-radius: 4px; padding: 6px 0; font-size: 11px; font-weight: bold; text-align: center; cursor: pointer; }
+        .card-btn.selected { background: #007bff; color: white; border-color: #007bff; }
+        .card-btn.sold { background: #f1f2f6; color: #b2bec3; border-color: #f1f2f6; cursor: not-allowed; }
 
-    body {
-      background-color: #0d1117;
-      color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
+        .selection-bottom { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 10px; display: flex; gap: 8px; box-shadow: 0 -3px 8px rgba(0,0,0,0.05); border-top-left-radius: 12px; border-top-right-radius: 12px; }
+        .slot-box { flex: 1; border: 2px dashed #b2bec3; border-radius: 8px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #7f8c8d; font-weight: bold; background: #fafafa; cursor: pointer; }
+        .slot-box.active { border: 2px solid #27ae60; background: #e8f8f5; color: #27ae60; font-size: 13px; }
 
-    header {
-      background-color: #161b22;
-      padding: 10px 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #238636;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    }
+        #countdownScreen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #1a2332; color: white; z-index: 200;
+            flex-direction: column; align-items: center; justify-content: center; text-align: center;
+        }
+        #countdownNumber { font-size: 120px; font-weight: bold; margin: 15px 0; color: #f1c40f; }
 
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+        #gameScreen { display: none; flex-direction: column; height: 100%; padding-bottom: 50px; }
+        .game-top-bar { display: flex; justify-content: space-around; background: #1a2332; color: white; padding: 8px; font-size: 10px; text-align: center; }
+        .game-body { display: flex; flex-grow: 1; overflow: hidden; padding: 5px; }
 
-    .avatar {
-      width: 35px;
-      height: 35px;
-      background-color: #238636;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-weight: bold;
-      font-size: 16px;
-    }
+        .live-grid { width: 36%; background: #fff; padding: 4px; display: flex; flex-direction: column; border-radius: 6px; margin-right: 5px; }
+        .grid-headers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; text-align: center; font-weight: bold; margin-bottom: 3px; font-size: 10px; }
+        .grid-header-box { padding: 3px; color: white; font-style: italic; }
+        .b { background: #007bff; } .i { background: #dc3545; } .n { background: #ffc107; color: black; } .g { background: #28a745; } .o { background: #6f42c1; }
 
-    .user-details h4 {
-      font-size: 14px;
-      color: #e6edf3;
-    }
+        .game-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; overflow-y: auto; flex-grow: 1; }
+        .game-cell { background: #f8f9fa; border: 1px solid #ddd; text-align: center; padding: 2px 0; font-weight: bold; font-size: 9px; }
+        .game-cell.active { background: #f1c40f; color: black; }
 
-    .balance-badge {
-      background-color: #238636;
-      color: #ffffff;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: bold;
-    }
+        .game-live-display { width: 64%; display: flex; flex-direction: column; align-items: center; padding: 2px; overflow-y: auto; }
+        .caller-area { display: flex; align-items: center; width: 100%; justify-content: space-around; margin-bottom: 8px; }
+        .recent-balls { display: flex; gap: 3px; }
+        .small-ball { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: white; background: #7f8c8d; }
+        .current-ball { width: 60px; height: 60px; background: #8e44ad; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 15px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 
-    .top-stats {
-      background-color: #161b22;
-      display: flex;
-      justify-content: space-around;
-      padding: 8px 0;
-      font-size: 13px;
-      border-bottom: 1px solid #30363d;
-    }
+        .cards-wrapper { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .user-card { background: #fff; width: 100%; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden; }
+        .card-headers { display: grid; grid-template-columns: repeat(5, 1fr); font-size: 9px; text-align: center; font-weight: bold; }
+        .card-header-cell { padding: 3px; color: white; }
+        .card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 4px; }
+        .card-cell { background: #f8f9fa; border: 1px solid #ddd; text-align: center; padding: 6px 0; font-weight: bold; font-size: 10px; cursor: pointer; border-radius: 3px; }
+        .card-cell.marked { background: #28a745; color: white; }
+        .card-cell.matched-call { border: 2px solid #e74c3c; animation: pulse 1s infinite alternate; }
+        .card-cell.free { background: #ff9800; color: white; font-size: 10px; }
 
-    .stat-item span {
-      font-weight: bold;
-      color: #3fb950;
-    }
+        @keyframes pulse { 0% { transform: scale(0.98); } 100% { transform: scale(1.03); } }
 
-    .live-board-container {
-      background-color: #010409;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      border-bottom: 1px solid #30363d;
-    }
+        .bingo-btn { background: #007bff; color: white; width: 100%; border: none; padding: 8px; font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; border-radius: 0 0 8px 8px; }
+        .game-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a2332; color: white; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; z-index: 100; }
 
-    .last-called-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #161b22;
-      padding: 6px 12px;
-      border-radius: 8px;
-    }
-
-    .current-ball {
-      width: 45px;
-      height: 45px;
-      background: radial-gradient(circle at 30% 30%, #ff5555, #990000);
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 18px;
-      font-weight: bold;
-      box-shadow: 0 0 10px rgba(255, 85, 85, 0.6);
-      animation: pop 0.3s ease-out;
-    }
-
-    @keyframes pop {
-      0% { transform: scale(0.5); }
-      100% { transform: scale(1); }
-    }
-
-    .history-balls {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-    }
-
-    .small-ball {
-      min-width: 28px;
-      height: 28px;
-      background-color: #21262d;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 11px;
-      border: 1px solid #30363d;
-    }
-
-    .cards-grid-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
-
-    .grid-title {
-      font-size: 14px;
-      margin-bottom: 8px;
-      color: #8b949e;
-      text-align: center;
-    }
-
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-    }
-
-    .card-btn {
-      background-color: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 12px 0;
-      color: #ffffff;
-      font-weight: bold;
-      font-size: 14px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-    }
-
-    .card-btn.selected {
-      background-color: #238636;
-      border-color: #3fb950;
-      box-shadow: 0 0 8px rgba(63, 185, 80, 0.4);
-    }
-
-    .card-btn.taken {
-      background-color: #da3633;
-      border-color: #f85149;
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .active-playing-view {
-      display: none;
-      flex: 1;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px;
-      overflow-y: auto;
-    }
-
-    .bingo-card {
-      background-color: #161b22;
-      border: 2px solid #30363d;
-      border-radius: 10px;
-      width: 100%;
-      max-width: 330px;
-      padding: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-
-    .bingo-header {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      text-align: center;
-      font-weight: 900;
-      font-size: 18px;
-      color: #3fb950;
-      margin-bottom: 5px;
-    }
-
-    .bingo-body {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 4px;
-    }
-
-    .cell {
-      background-color: #21262d;
-      aspect-ratio: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 15px;
-      font-weight: bold;
-      border-radius: 4px;
-      border: 1px solid #30363d;
-    }
-
-    .cell.star {
-      color: #e3b341;
-      font-size: 18px;
-    }
-
-    .cell.marked {
-      background-color: #238636;
-      color: white;
-    }
-
-    .bingo-btn {
-      margin-top: 15px;
-      width: 100%;
-      max-width: 330px;
-      background: linear-gradient(135deg, #238636, #2ea043);
-      color: white;
-      border: none;
-      padding: 12px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(46, 160, 67, 0.4);
-      cursor: pointer;
-    }
-
-    .bingo-btn:active {
-      transform: scale(0.98);
-    }
-
-    footer {
-      background-color: #161b22;
-      padding: 8px;
-      text-align: center;
-      font-size: 11px;
-      color: #8b949e;
-      border-top: 1px solid #30363d;
-    }
-  </style>
+        #winnerModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); z-index: 300; align-items: center; justify-content: center; padding: 15px;
+        }
+        .winner-card-container {
+            background: #ffffff; border: 4px solid #f1c40f; border-radius: 20px;
+            width: 100%; max-width: 350px; padding: 20px 15px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative;
+        }
+        .winner-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+        .winner-badge-num { color: #e74c3c; font-size: 24px; }
+        .winner-amount { color: #e74c3c; font-size: 20px; }
+        .winner-title { font-size: 20px; font-weight: bold; color: #27ae60; margin: 10px 0; font-style: italic; }
+        .prize-pool-box { background: #f1f2f6; border-radius: 15px; padding: 10px; margin: 12px 0; }
+        .prize-pool-label { font-size: 10px; color: #7f8c8d; font-weight: bold; letter-spacing: 1px; }
+        .prize-pool-value { font-size: 22px; font-weight: bold; color: #27ae60; }
+        .winning-card-preview { background: #f8f9fa; border: 1px solid #e1e2e6; border-radius: 15px; padding: 10px; margin-bottom: 15px; }
+        .winning-card-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px; }
+        .card-no { color: #007bff; }
+        .player-name-sub { color: #2ecc71; font-style: italic; }
+        .mini-card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .mini-cell { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 5px 0; font-size: 11px; font-weight: bold; color: #7f8c8d; }
+        .mini-cell.hit-green { background: #27ae60; color: white; border-color: #27ae60; }
+        .mini-cell.star { background: #333; color: white; }
+    </style>
 </head>
 <body>
 
-  <header>
-    <div class="user-info">
-      <div class="avatar" id="userAvatar">U</div>
-      <div class="user-details">
-        <h4 id="userName">ተጫዋች</h4>
-      </div>
+    <div id="selectionScreen">
+        <div class="selection-top-bar">
+            <div class="badge" style="background:#f1c40f; color:black;">ROOM<br>VIP 💰💰</div>
+            <div class="badge" style="background:#2c3e50; color:white;">SOLD<br><span id="soldCount">0</span></div>
+            <div class="badge" style="background:#2c3e50; color:white;">TIME<br><span id="selectionTimer" style="color:#e74c3c">30s</span></div>
+            <div class="badge" style="background:#27ae60; color:white;">BALANCE<br><span id="userBalance">0.00</span> ETB</div>
+        </div>
+        <div class="grid-container" id="selectionGrid"></div>
+        <div class="selection-bottom">
+            <div class="slot-box" id="slot1" onclick="clearSlot(1)"><span>+</span> SLOT 1 EMPTY</div>
+            <div class="slot-box" id="slot2" onclick="clearSlot(2)"><span>+</span> SLOT 2 EMPTY</div>
+        </div>
     </div>
-    <div class="balance-badge" id="userBalance">0.00 ETB</div>
-  </header>
 
-  <div class="top-stats">
-    <div class="stat-item">ቆጣሪ: <span id="timerVal">30</span>ሰከንድ</div>
-    <div class="stat-item">ተጫዋቾች: <span id="playersCount">0</span></div>
-    <div class="stat-item">ደራሽ: <span id="derashVal">0</span> ETB</div>
-  </div>
-
-  <div class="live-board-container">
-    <div class="last-called-bar">
-      <div style="font-size: 12px; color: #8b949e;">የመጨረሻ ቁጥር፦</div>
-      <div class="current-ball" id="currentBall">-</div>
-      <div style="font-size: 12px; color: #8b949e;">የወጡ: <span id="calledCount" style="color:white;">0</span>/75</div>
+    <div id="countdownScreen">
+        <p>GAME STARTING IN</p>
+        <div id="countdownNumber">3</div>
+        <p>GET READY!</p>
     </div>
-    <div class="history-balls" id="historyBalls"></div>
-  </div>
 
-  <div class="cards-grid-container" id="lobbyView">
-    <div class="grid-title">እባክዎ የካርቴላ ቁጥር ይምረጡ (አንዱ 10 ETB)</div>
-    <div class="cards-grid" id="cardsGrid"></div>
-  </div>
-
-  <div class="active-playing-view" id="playingView">
-    <div class="bingo-card">
-      <div class="bingo-header">
-        <div>B</div><div>I</div><div>N</div><div>G</div><div>O</div>
-      </div>
-      <div class="bingo-body" id="bingoBody"></div>
-    </div>
-    <button class="bingo-btn" onclick="claimBingo()">BINGO! 🎯</button>
-  </div>
-
-  <footer>
-    Chernet Bingo System &copy; 2026 | All Rights Reserved
-  </footer>
-
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) tg.expand();
-
-    const socket = io("https://cherbingo-backend.onrender.com");
-
-    const user = tg?.initDataUnsafe?.user || {
-      id: "1136433526",
-      first_name: "Demo Player"
-    };
-
-    let selectedCards = [];
-    let calledNumbersSet = new Set();
-    let currentCardData = [];
-
-    document.getElementById('userName').innerText = user.first_name;
-    document.getElementById('userAvatar').innerText = user.first_name.charAt(0).toUpperCase();
-
-    socket.emit('getUserBalance', { userId: user.id });
-
-    socket.on('userBalanceUpdate', (data) => {
-      document.getElementById('userBalance').innerText = `${data.balance.toFixed(2)} ETB`;
-    });
-
-    const cardsGrid = document.getElementById('cardsGrid');
-    for (let i = 1; i <= 100; i++) {
-      const btn = document.createElement('div');
-      btn.className = 'card-btn';
-      btn.innerText = i;
-      btn.id = `card-${i}`;
-      btn.onclick = () => toggleCardSelection(i);
-      cardsGrid.appendChild(btn);
-    }
-
-    function toggleCardSelection(cardNum) {
-      const btn = document.getElementById(`card-${cardNum}`);
-      if (btn.classList.contains('taken')) return;
-
-      if (selectedCards.includes(cardNum)) {
-        socket.emit('deselectCard', { cardNum, userId: user.id });
-        selectedCards = selectedCards.filter(c => c !== cardNum);
-        btn.classList.remove('selected');
-      } else {
-        socket.emit('selectCard', { cardNum, userId: user.id, userName: user.first_name });
-      }
-    }
-
-    socket.on('cardSelectSuccess', (data) => {
-      if (!selectedCards.includes(data.cardNum)) {
-        selectedCards.push(data.cardNum);
-      }
-      const btn = document.getElementById(`card-${data.cardNum}`);
-      if (btn) btn.classList.add('selected');
-      document.getElementById('userBalance').innerText = `${data.newBalance.toFixed(2)} ETB`;
-    });
-
-    socket.on('cardSelectFailed', (data) => {
-      alert(data.message);
-    });
-
-    socket.on('roomState', (data) => {
-      document.getElementById('timerVal').innerText = data.timeLeft;
-      document.getElementById('playersCount').innerText = data.playersCount;
-      document.getElementById('derashVal').innerText = data.derash;
-
-      for (let i = 1; i <= 100; i++) {
-        const btn = document.getElementById(`card-${i}`);
-        if (!btn) continue;
+    <div id="gameScreen">
+        <div class="game-top-bar">
+            <div>DERASH<br><span class="stat-val green" id="derashVal">0 ETB</span></div>
+            <div>BALLS<br><span class="stat-val"><span id="ballsCount">0</span><small>/75</small></span></div>
+            <div>PLAYERS<br><span class="stat-val yellow" id="playersCount">0</span></div>
+        </div>
         
-        if (data.soldCards.includes(i)) {
-          if (!selectedCards.includes(i)) {
-            btn.classList.add('taken');
-            btn.classList.remove('selected');
-          }
-        } else {
-          btn.classList.remove('taken');
-          if (!selectedCards.includes(i)) {
-            btn.classList.remove('selected');
-          }
+        <div class="game-body">
+            <div class="live-grid">
+                <div class="grid-headers">
+                    <div class="grid-header-box b">B</div>
+                    <div class="grid-header-box i">I</div>
+                    <div class="grid-header-box n">N</div>
+                    <div class="grid-header-box g">G</div>
+                    <div class="grid-header-box o">O</div>
+                </div>
+                <div class="game-numbers" id="gameGrid"></div>
+            </div>
+
+            <div class="game-live-display">
+                <div class="caller-area">
+                    <div class="recent-balls" id="recentBallsArea">
+                        <div class="small-ball">-</div>
+                        <div class="small-ball">-</div>
+                        <div class="small-ball">-</div>
+                    </div>
+                    <div class="current-ball" id="currentBallDisplay">READY</div>
+                </div>
+                <div class="cards-wrapper" id="userCardsContainer"></div>
+            </div>
+        </div>
+
+        <div class="game-bottom-bar">
+            <div>ROOM: <b>VIP 💰💰</b></div>
+            <button onclick="location.reload()" style="background:#007bff; color:white; border:none; padding:4px 8px; border-radius:3px; font-size:10px;">🔄 REFRESH</button>
+        </div>
+    </div>
+
+    <div id="winnerModal">
+        <div class="winner-card-container">
+            <div class="winner-header">
+                <div><span class="winner-badge-num">1</span> አሸናፊ</div>
+                <div class="winner-amount"><span id="winAmountModal">0</span> <small style="font-size:11px;">ETB</small></div>
+            </div>
+            <div class="winner-title"><span id="winnerPlayerName">--</span> has won!</div>
+            <div class="prize-pool-box">
+                <div class="prize-pool-label">TOTAL PRIZE POOL</div>
+                <div class="prize-pool-value"><span id="winPoolModal">0</span> <small style="font-size:12px;">ETB</small></div>
+            </div>
+            <div class="winning-card-preview">
+                <div class="winning-card-top">
+                    <span class="card-no" id="winningCardNo">CARD #---</span>
+                    <span class="player-name-sub" id="winnerPlayerSub">--</span>
+                </div>
+                <div class="mini-card-grid" id="miniWinnerGrid"></div>
+            </div>
+            <div style="background:#e1e2e6; border-radius:10px; height:25px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
+                <div id="progressBar" style="position:absolute; left:0; top:0; bottom:0; background:#f1c40f; width:100%; transition:width 1s linear;"></div>
+                <div style="position:relative; z-index:2; font-size:9px; font-weight:bold; color:#2c3e50;">NEXT ROUND: <span id="nextSecs">5</span>S</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const BACKEND_URL = "https://cherbingo-backend.onrender.com"; 
+        const socket = io(BACKEND_URL, { autoConnect: true }); 
+
+        let userId = tg.initDataUnsafe?.user?.id || Math.floor(100000 + Math.random() * 900000);
+        let userName = tg.initDataUnsafe?.user?.first_name || "ተጫዋች";
+
+        let selectedCards = [null, null];
+        let userCardsData = {};
+        let recentBalls = [];
+        let calledNumbers = new Set();
+        let currentSoldCards = [];
+
+        // 1-400 ካርቴላዎችን ማፍለቅ
+        const selectionGrid = document.getElementById('selectionGrid');
+        for (let i = 1; i <= 400; i++) {
+            const btn = document.createElement('div');
+            btn.className = 'card-btn';
+            btn.innerText = i;
+            btn.id = 'select-' + i;
+            btn.onclick = () => selectCard(i);
+            selectionGrid.appendChild(btn);
         }
-      }
-    });
 
-    socket.on('gameStarted', () => {
-      document.getElementById('lobbyView').style.display = 'none';
-      document.getElementById('playingView').style.display = 'flex';
-      
-      if (selectedCards.length > 0) {
-        socket.emit('getCardData', { cardNum: selectedCards[0] });
-      }
-    });
+        function updateSoldCardsUI(soldList) {
+            currentSoldCards = soldList || [];
+            document.getElementById('soldCount').innerText = currentSoldCards.length;
+            document.getElementById('derashVal').innerText = (currentSoldCards.length * 20) + " ETB";
 
-    socket.on('cardDataResponse', (data) => {
-      currentCardData = data.card;
-      renderBingoBoard(data.card);
-    });
+            for (let i = 1; i <= 400; i++) {
+                const btn = document.getElementById('select-' + i);
+                if (!btn) continue;
 
-    function renderBingoBoard(cardArray) {
-      const body = document.getElementById('bingoBody');
-      body.innerHTML = '';
-      
-      cardArray.forEach((val) => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        
-        if (val === '★') {
-          cell.innerText = '★';
-          cell.classList.add('star', 'marked');
-        } else {
-          cell.innerText = val;
-          if (calledNumbersSet.has(val)) {
-            cell.classList.add('marked');
-          }
+                if (selectedCards.includes(i)) {
+                    btn.className = 'card-btn selected';
+                } else if (currentSoldCards.includes(i)) {
+                    btn.className = 'card-btn sold';
+                } else {
+                    btn.className = 'card-btn';
+                }
+            }
         }
-        body.appendChild(cell);
-      });
-    }
 
-    socket.on('newBall', (data) => {
-      calledNumbersSet.add(data.num);
-      
-      const currentBallEl = document.getElementById('currentBall');
-      currentBallEl.innerText = `${data.letter}${data.num}`;
-      
-      document.getElementById('calledCount').innerText = data.ballsCalled;
+        function selectCard(num) {
+            const btn = document.getElementById('select-' + num);
+            if(btn.classList.contains('sold')) return;
 
-      const historyContainer = document.getElementById('historyBalls');
-      const smallBall = document.createElement('div');
-      smallBall.className = 'small-ball';
-      smallBall.innerText = data.num;
-      historyContainer.prepend(smallBall);
+            if (selectedCards.includes(num)) {
+                if (selectedCards[0] === num) clearSlot(1); 
+                else clearSlot(2);
+                return;
+            }
 
-      if (currentCardData.length > 0) {
-        renderBingoBoard(currentCardData);
-      }
-    });
+            if (selectedCards[0] === null) {
+                selectedCards[0] = num;
+                updateSlotUI(1, num);
+            } else if (selectedCards[1] === null) {
+                selectedCards[1] = num;
+                updateSlotUI(2, num);
+            } else {
+                if (tg.showAlert) tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
+                else alert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
+            }
+        }
 
-    socket.on('roomReset', () => {
-      selectedCards = [];
-      calledNumbersSet.clear();
-      currentCardData = [];
-      document.getElementById('lobbyView').style.display = 'block';
-      document.getElementById('playingView').style.display = 'none';
-      document.getElementById('historyBalls').innerHTML = '';
-      document.getElementById('currentBall').innerText = '-';
-      document.getElementById('calledCount').innerText = '0';
-    });
+        function updateSlotUI(slotNum, cardNum) {
+            const slot = document.getElementById('slot' + slotNum);
+            slot.classList.add('active');
+            slot.innerText = `CARD ${cardNum} (❌ ሰርዝ)`;
+            document.getElementById('select-' + cardNum).className = 'card-btn selected';
+            socket.emit('selectCard', { cardNum, userId });
+        }
 
-    function claimBingo() {
-      alert("🎯 BINGO ጥያቄዎ ለሲስተሙ ተልኳል! በመረጣቸው ቁጥሮች ላይ እየተረጋገጠ ነው።");
-    }
-  </script>
+        function clearSlot(slotNum) {
+            const index = slotNum - 1;
+            const cardNum = selectedCards[index];
+            if (cardNum !== null) {
+                const btn = document.getElementById('select-' + cardNum);
+                if (btn) btn.className = 'card-btn';
+                socket.emit('deselectCard', { cardNum, userId });
+                selectedCards[index] = null;
+                const slot = document.getElementById('slot' + slotNum);
+                slot.classList.remove('active');
+                slot.innerHTML = `<span>+</span> SLOT ${slotNum} EMPTY`;
+            }
+        }
+
+        // 1. ከአገልጋይ የሚመጣ ፈጣን የካርቴላ መረጃ ማዘመኛ
+        socket.on('cardUpdated', (data) => {
+            if (data && data.soldCards) {
+                updateSoldCardsUI(data.soldCards);
+            }
+        });
+
+        // 2. አጠቃላይ የክፍል መረጃ ማዳመጫ
+        socket.on('roomState', (data) => {
+            document.getElementById('selectionTimer').innerText = data.timeLeft + 's';
+            document.getElementById('playersCount').innerText = data.playersCount;
+            
+            updateSoldCardsUI(data.soldCards);
+
+            // Spectator Mode
+            if (data.status === 'PLAYING' && selectedCards.every(c => c === null)) {
+                document.getElementById('selectionScreen').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'flex';
+                initGameBoard();
+
+                const container = document.getElementById('userCardsContainer');
+                container.innerHTML = `
+                    <div style="text-align:center; padding: 20px; background: #fff; border-radius: 8px; margin-top: 15px; border: 2px dashed #e67e22; width: 100%;">
+                        <h3 style="color: #e67e22; margin-bottom: 8px; font-size: 13px;">WAITING FOR THE NEXT ROUND...</h3>
+                        <p style="font-size: 11px; color: #7f8c8d;">ጨዋታው ተጀምሯል። ቀጣዩ ዙር እስኪጀምር ተመልካች ሆነው ይከታተሉ።</p>
+                    </div>
+                `;
+            }
+        });
+
+        socket.on('roomReset', () => {
+            selectedCards = [null, null];
+            userCardsData = {};
+            recentBalls = [];
+            calledNumbers.clear();
+
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('winnerModal').style.display = 'none';
+            document.getElementById('selectionScreen').style.display = 'flex';
+
+            updateSoldCardsUI([]);
+            clearSlot(1);
+            clearSlot(2);
+        });
+
+        socket.on('startCountdown', () => {
+            if (selectedCards.some(c => c !== null)) {
+                document.getElementById('selectionScreen').style.display = 'none';
+                document.getElementById('countdownScreen').style.display = 'flex';
+                let count = 3;
+                const countNumElement = document.getElementById('countdownNumber');
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countNumElement.innerText = count;
+                    } else {
+                        clearInterval(timer);
+                        startGame();
+                    }
+                }, 1000);
+            }
+        });
+
+        function startGame() {
+            document.getElementById('countdownScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            initGameBoard();
+            
+            const chosen = selectedCards.filter(c => c !== null);
+            socket.emit('getUserCards', { chosenCards: chosen, userId }, (cardsData) => {
+                if(cardsData) {
+                    userCardsData = cardsData;
+                    renderUserSelectedCards();
+                }
+            });
+        }
+
+        function initGameBoard() {
+            const gameGrid = document.getElementById('gameGrid');
+            gameGrid.innerHTML = '';
+            for (let row = 0; row < 15; row++) {
+                for (let col = 0; col < 5; col++) {
+                    let num = (col * 15) + row + 1;
+                    let cell = document.createElement('div');
+                    cell.className = 'game-cell';
+                    cell.id = 'grid-cell-' + num;
+                    cell.innerText = num;
+                    if (calledNumbers.has(num)) cell.classList.add('active');
+                    gameGrid.appendChild(cell);
+                }
+            }
+        }
+
+        function renderUserSelectedCards() {
+            const container = document.getElementById('userCardsContainer');
+            container.innerHTML = '';
+
+            Object.keys(userCardsData).forEach(cardNo => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'user-card';
+                cardDiv.innerHTML = `
+                    <div class="card-headers">
+                        <div class="card-header-cell b">B</div>
+                        <div class="card-header-cell i">I</div>
+                        <div class="card-header-cell n">N</div>
+                        <div class="card-header-cell g">G</div>
+                        <div class="card-header-cell o">O</div>
+                    </div>
+                    <div class="card-grid" id="cardGrid-${cardNo}"></div>
+                    <button class="bingo-btn" onclick="claimBingo(${cardNo})">BINGO! #CARD ${cardNo}</button>
+                `;
+                container.appendChild(cardDiv);
+
+                const cardGrid = cardDiv.querySelector(`#cardGrid-${cardNo}`);
+                userCardsData[cardNo].forEach(item => {
+                    let cell = document.createElement('div');
+                    cell.className = 'card-cell';
+                    cell.setAttribute('data-val', item);
+                    cell.innerText = item === '★' ? '★' : item;
+                    
+                    if (item === '★') {
+                        cell.classList.add('free', 'marked');
+                    } else {
+                        cell.onclick = () => cell.classList.toggle('marked');
+                    }
+                    cardGrid.appendChild(cell);
+                });
+            });
+        }
+
+        socket.on('newBall', (data) => {
+            calledNumbers.add(data.num);
+            document.getElementById('ballsCount').innerText = data.ballsCalled;
+            document.getElementById('currentBallDisplay').innerText = data.letter + "-" + data.num;
+
+            let activeGridCell = document.getElementById('grid-cell-' + data.num);
+            if (activeGridCell) activeGridCell.classList.add('active');
+
+            recentBalls.unshift(data.letter + "-" + data.num);
+            if (recentBalls.length > 3) recentBalls.pop();
+
+            const recentArea = document.getElementById('recentBallsArea');
+            recentArea.innerHTML = '';
+            recentBalls.forEach(b => {
+                let div = document.createElement('div');
+                div.className = 'small-ball';
+                div.innerText = b;
+                recentArea.appendChild(div);
+            });
+
+            document.querySelectorAll('.card-cell').forEach(cell => {
+                if (cell.getAttribute('data-val') == data.num) {
+                    cell.classList.add('matched-call');
+                }
+            });
+        });
+
+        function claimBingo(cardNo) {
+            socket.emit('claimBingo', { cardNo, userId, userName });
+        }
+
+        socket.on('gameWinner', (data) => {
+            document.getElementById('winAmountModal').innerText = data.prize || 0;
+            document.getElementById('winPoolModal').innerText = data.prize || 0;
+            document.getElementById('winnerPlayerName').innerText = data.userName || "--";
+            document.getElementById('winnerPlayerSub').innerText = data.userName || "--";
+            document.getElementById('winningCardNo').innerText = "CARD #" + (data.cardNo || "---");
+
+            const miniGrid = document.getElementById('miniWinnerGrid');
+            miniGrid.innerHTML = '';
+            if (data.cardMatrix && Array.isArray(data.cardMatrix)) {
+                data.cardMatrix.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.className = 'mini-cell';
+                    if (val === '★') {
+                        cell.innerText = '★';
+                        cell.classList.add('star');
+                    } else {
+                        cell.innerText = val;
+                        if (calledNumbers.has(val)) {
+                            cell.classList.add('hit-green');
+                        }
+                    }
+                    miniGrid.appendChild(cell);
+                });
+            }
+
+            document.getElementById('winnerModal').style.display = 'flex';
+
+            let seconds = 5;
+            const progress = document.getElementById('progressBar');
+            const secText = document.getElementById('nextSecs');
+
+            const interval = setInterval(() => {
+                seconds--;
+                secText.innerText = seconds;
+                progress.style.width = (seconds / 5 * 100) + '%';
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 </html>
