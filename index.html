@@ -103,7 +103,10 @@
             <div class="badge" style="background:#f1c40f; color:black;">ROOM<br>VIP 💰💰</div>
             <div class="badge" style="background:#2c3e50; color:white;">SOLD<br><span id="soldCount">0</span></div>
             <div class="badge" style="background:#2c3e50; color:white;">TIME<br><span id="selectionTimer" style="color:#e74c3c">30s</span></div>
-            <div class="badge" style="background:#27ae60; color:white;">BALANCE<br><span id="userBalance">0.00</span> ETB</div>
+            <!-- እዚች ላይ ሲጫኑ ለሙከራ ገንዘብ ማስገቢያ ይሰራል -->
+            <div class="badge" style="background:#27ae60; color:white; cursor:pointer;" onclick="demoAddBalance()" title="ገንዘብ ለመጨመር እዚ ላይ ይጫኑ">
+                BALANCE (➕)<br><span id="userBalance">0.00</span> ETB
+            </div>
         </div>
         <div class="grid-container" id="selectionGrid"></div>
         <div class="selection-bottom">
@@ -191,17 +194,33 @@
         let userId = tg.initDataUnsafe?.user?.id || Math.floor(100000 + Math.random() * 900000);
         let userName = tg.initDataUnsafe?.user?.first_name || "ተጫዋች";
 
+        let currentBalance = 0; // የተጫዋች ቀሪ ሂሳብ
         let selectedCards = [null, null];
         let userCardsData = {};
         let recentBalls = [];
         let calledNumbers = new Set();
         let currentSoldCards = [];
 
-        // 1. የቪዩዘር ቀሪ ሂሳብ መጠየቂያ
+        function updateBalanceDisplay() {
+            document.getElementById('userBalance').innerText = currentBalance.toFixed(2);
+        }
+
+        // ለሙከራ ብር ለመጨመር የሚያስችል
+        function demoAddBalance() {
+            let amount = prompt("ለሙከራ የሚሆን የገንዘብ መጠን ያስገቡ (ETB)፦", "100");
+            if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+                currentBalance += parseFloat(amount);
+                updateBalanceDisplay();
+                alert(`🎉 ${amount} ETB በስኬት ተጨምሯል! አሁን ያለዎት ቀሪ ሂሳብ፦ ${currentBalance.toFixed(2)} ETB`);
+            }
+        }
+
+        // 1. የቪዩዘር ቀሪ ሂሳብ ከሰርቨር መቀበያ
         socket.emit('getUserBalance', { userId });
         socket.on('userBalanceUpdate', (data) => {
             if (data && data.balance !== undefined) {
-                document.getElementById('userBalance').innerText = data.balance.toFixed(2);
+                currentBalance = data.balance;
+                updateBalanceDisplay();
             }
         });
 
@@ -219,7 +238,7 @@
         function updateSoldCardsUI(soldList) {
             currentSoldCards = soldList || [];
             document.getElementById('soldCount').innerText = currentSoldCards.length;
-            document.getElementById('derashVal').innerText = (currentSoldCards.length * 20) + " ETB";
+            document.getElementById('derashVal').innerText = (currentSoldCards.length * 10) + " ETB";
 
             for (let i = 1; i <= 400; i++) {
                 const btn = document.getElementById('select-' + i);
@@ -245,11 +264,21 @@
                 return;
             }
 
+            // የካርቴላ ዋጋ 10 ብር ነው፤ ሂሳቡ ከ 10 ብር በላይ መሆኑን ማረጋገጫ
+            if (currentBalance < 10) {
+                alert("⚠️ በቂ ቀሪ ሂሳብ የለዎትም! እባክዎ BALANCE በሚለው ላይ በመጫን ብር ይጨምሩ።");
+                return;
+            }
+
             if (selectedCards[0] === null) {
                 selectedCards[0] = num;
+                currentBalance -= 10; // 10 ብር መቀነስ
+                updateBalanceDisplay();
                 updateSlotUI(1, num);
             } else if (selectedCards[1] === null) {
                 selectedCards[1] = num;
+                currentBalance -= 10; // 10 ብር መቀነስ
+                updateBalanceDisplay();
                 updateSlotUI(2, num);
             } else {
                 if (tg.showAlert) tg.showAlert("ከ 2 ካርቴላ በላይ መምረጥ አይችሉም!");
@@ -273,7 +302,11 @@
                 const btn = document.getElementById('select-' + cardNum);
                 if (btn) btn.className = 'card-btn';
                 socket.emit('deselectCard', { cardNum, userId });
+                
                 selectedCards[index] = null;
+                currentBalance += 10; // ካርቴላው ሲሰረዝ 10 ብሩ ይመለሳል
+                updateBalanceDisplay();
+
                 const slot = document.getElementById('slot' + slotNum);
                 slot.classList.remove('active');
                 slot.innerHTML = `<span>+</span> SLOT ${slotNum} EMPTY`;
@@ -441,12 +474,21 @@
             socket.emit('claimBingo', { cardNo, userId, userName });
         }
 
+        // አሸናፊ ሲሆን ገንዘቡ ወደ ባላንሱ ይደመራል
         socket.on('gameWinner', (data) => {
-            document.getElementById('winAmountModal').innerText = data.prize || 0;
-            document.getElementById('winPoolModal').innerText = data.prize || 0;
+            let winPrize = parseFloat(data.prize) || 0;
+
+            document.getElementById('winAmountModal').innerText = winPrize;
+            document.getElementById('winPoolModal').innerText = winPrize;
             document.getElementById('winnerPlayerName').innerText = data.userName || "--";
             document.getElementById('winnerPlayerSub').innerText = data.userName || "--";
             document.getElementById('winningCardNo').innerText = "CARD #" + (data.cardNo || "---");
+
+            // አሸናፊው እኔ ከሆንኩ ያሸነፍኩትን ገንዘብ ወደ ሂሳቤ ጨምር
+            if (String(data.userId) === String(userId)) {
+                currentBalance += winPrize;
+                updateBalanceDisplay();
+            }
 
             const miniGrid = document.getElementById('miniWinnerGrid');
             miniGrid.innerHTML = '';
