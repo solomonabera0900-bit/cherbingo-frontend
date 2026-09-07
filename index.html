@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Chernet Bingo</title>
+  <title>Chernet Bingo 400 Players</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -13,13 +13,13 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
     }
 
     body {
-      background-color: #0d1117;
+      background-color: #0b0e14;
       color: #ffffff;
       display: flex;
       flex-direction: column;
@@ -27,236 +27,241 @@
       overflow: hidden;
     }
 
+    /* HEADER */
     header {
-      background-color: #161b22;
-      padding: 10px 15px;
+      background: linear-gradient(135deg, #161b22, #0d1117);
+      padding: 10px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 2px solid #238636;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
 
-    .user-info {
+    .user-profile {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
     .avatar {
-      width: 35px;
-      height: 35px;
-      background-color: #238636;
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #238636, #2ea043);
       border-radius: 50%;
       display: flex;
       justify-content: center;
       align-items: center;
       font-weight: bold;
       font-size: 16px;
+      box-shadow: 0 0 8px rgba(46, 160, 67, 0.4);
     }
 
     .user-details h4 {
-      font-size: 14px;
-      color: #e6edf3;
+      font-size: 13px;
+      color: #f0f6fc;
     }
 
     .balance-badge {
       background-color: #238636;
       color: #ffffff;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
       font-weight: bold;
+      letter-spacing: 0.5px;
     }
 
+    /* TOP STATS BAR */
     .top-stats {
       background-color: #161b22;
       display: flex;
       justify-content: space-around;
       padding: 8px 0;
-      font-size: 13px;
+      font-size: 12px;
       border-bottom: 1px solid #30363d;
     }
 
-    .stat-item span {
+    .stat-box {
+      text-align: center;
+    }
+
+    .stat-box label {
+      display: block;
+      color: #8b949e;
+      font-size: 10px;
+    }
+
+    .stat-box span {
+      font-weight: bold;
+      color: #3fb950;
+      font-size: 14px;
+    }
+
+    /* BINGO CALL BOARD (1-75 DISPLAY) */
+    .board-container {
+      background-color: #0d1117;
+      padding: 6px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .calling-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #161b22;
+      padding: 6px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+    }
+
+    .current-ball-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .big-ball {
+      width: 48px;
+      height: 48px;
+      background: radial-gradient(circle at 35% 35%, #ff5555, #990000);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      font-weight: 900;
+      box-shadow: 0 0 12px rgba(255, 85, 85, 0.7);
+      border: 2px solid #ffffff;
+    }
+
+    /* MAIN CONTENT VIEW (LOBBY vs GAME) */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    /* 400 CARDS LOBBY GRID */
+    .cards-grid-400 {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+    }
+
+    .card-item {
+      background-color: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #c9d1d9;
+    }
+
+    .card-item.selected {
+      background-color: #238636;
+      color: #ffffff;
+      border-color: #3fb950;
+      box-shadow: 0 0 8px rgba(63, 185, 80, 0.5);
+    }
+
+    .card-item.taken {
+      background-color: #da3633;
+      color: #ffffff;
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* GAME PLAYING AREA */
+    .game-play-area {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bingo-card-container {
+      background-color: #161b22;
+      border: 2px solid #30363d;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 340px;
+      padding: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+
+    .card-header-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 0 4px;
+      font-size: 13px;
       font-weight: bold;
       color: #3fb950;
     }
 
-    .live-board-container {
-      background-color: #010409;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .last-called-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #161b22;
-      padding: 6px 12px;
-      border-radius: 8px;
-    }
-
-    .current-ball {
-      width: 45px;
-      height: 45px;
-      background: radial-gradient(circle at 30% 30%, #ff5555, #990000);
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 18px;
-      font-weight: bold;
-      box-shadow: 0 0 10px rgba(255, 85, 85, 0.6);
-      animation: pop 0.3s ease-out;
-    }
-
-    @keyframes pop {
-      0% { transform: scale(0.5); }
-      100% { transform: scale(1); }
-    }
-
-    .history-balls {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-    }
-
-    .small-ball {
-      min-width: 28px;
-      height: 28px;
-      background-color: #21262d;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 11px;
-      border: 1px solid #30363d;
-    }
-
-    .cards-grid-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
-
-    .grid-title {
-      font-size: 14px;
-      margin-bottom: 8px;
-      color: #8b949e;
-      text-align: center;
-    }
-
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-    }
-
-    .card-btn {
-      background-color: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 12px 0;
-      color: #ffffff;
-      font-weight: bold;
-      font-size: 14px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-    }
-
-    .card-btn.selected {
-      background-color: #238636;
-      border-color: #3fb950;
-      box-shadow: 0 0 8px rgba(63, 185, 80, 0.4);
-    }
-
-    .card-btn.taken {
-      background-color: #da3633;
-      border-color: #f85149;
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .active-playing-view {
-      display: none;
-      flex: 1;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px;
-      overflow-y: auto;
-    }
-
-    .bingo-card {
-      background-color: #161b22;
-      border: 2px solid #30363d;
-      border-radius: 10px;
-      width: 100%;
-      max-width: 330px;
-      padding: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-
-    .bingo-header {
+    .bingo-header-letters {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       text-align: center;
       font-weight: 900;
-      font-size: 18px;
-      color: #3fb950;
-      margin-bottom: 5px;
+      font-size: 20px;
+      color: #2ea043;
+      margin-bottom: 6px;
     }
 
-    .bingo-body {
+    .bingo-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 4px;
+      gap: 5px;
     }
 
-    .cell {
+    .bingo-cell {
       background-color: #21262d;
       aspect-ratio: 1;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: bold;
-      border-radius: 4px;
+      border-radius: 6px;
       border: 1px solid #30363d;
     }
 
-    .cell.star {
+    .bingo-cell.star {
       color: #e3b341;
-      font-size: 18px;
+      font-size: 20px;
     }
 
-    .cell.marked {
+    .bingo-cell.marked {
       background-color: #238636;
-      color: white;
+      color: #ffffff;
+      border-color: #3fb950;
+      box-shadow: inset 0 0 5px rgba(0,0,0,0.4);
     }
 
-    .bingo-btn {
-      margin-top: 15px;
+    /* BINGO CLAIM BUTTON */
+    .claim-bingo-btn {
       width: 100%;
-      max-width: 330px;
+      max-width: 340px;
+      padding: 14px;
       background: linear-gradient(135deg, #238636, #2ea043);
-      color: white;
       border: none;
-      padding: 12px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(46, 160, 67, 0.4);
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 1px;
       cursor: pointer;
+      box-shadow: 0 4px 15px rgba(46, 160, 67, 0.4);
     }
 
-    .bingo-btn:active {
-      transform: scale(0.98);
+    .claim-bingo-btn:active {
+      transform: scale(0.97);
     }
 
     footer {
@@ -271,8 +276,9 @@
 </head>
 <body>
 
+  <!-- HEADER -->
   <header>
-    <div class="user-info">
+    <div class="user-profile">
       <div class="avatar" id="userAvatar">U</div>
       <div class="user-details">
         <h4 id="userName">ተጫዋች</h4>
@@ -281,49 +287,76 @@
     <div class="balance-badge" id="userBalance">0.00 ETB</div>
   </header>
 
+  <!-- TOP STATS -->
   <div class="top-stats">
-    <div class="stat-item">ቆጣሪ: <span id="timerVal">30</span>ሰከንድ</div>
-    <div class="stat-item">ተጫዋቾች: <span id="playersCount">0</span></div>
-    <div class="stat-item">ደራሽ: <span id="derashVal">0</span> ETB</div>
+    <div class="stat-box">
+      <label>ቆጣሪ</label>
+      <span id="timerVal">30</span>s
+    </div>
+    <div class="stat-box">
+      <label>የተያዙ ካርቴላዎች</label>
+      <span id="playersCount">0</span>/400
+    </div>
+    <div class="stat-box">
+      <label>ደራሽ (Prize Pool)</label>
+      <span id="derashVal">0</span> ETB
+    </div>
   </div>
 
-  <div class="live-board-container">
-    <div class="last-called-bar">
+  <!-- CALLING BOARD HEADER -->
+  <div class="board-container">
+    <div class="calling-bar">
       <div style="font-size: 12px; color: #8b949e;">የመጨረሻ ቁጥር፦</div>
-      <div class="current-ball" id="currentBall">-</div>
-      <div style="font-size: 12px; color: #8b949e;">የወጡ: <span id="calledCount" style="color:white;">0</span>/75</div>
-    </div>
-    <div class="history-balls" id="historyBalls"></div>
-  </div>
-
-  <div class="cards-grid-container" id="lobbyView">
-    <div class="grid-title">እባክዎ የካርቴላ ቁጥር ይምረጡ (አንዱ 10 ETB)</div>
-    <div class="cards-grid" id="cardsGrid"></div>
-  </div>
-
-  <div class="active-playing-view" id="playingView">
-    <div class="bingo-card">
-      <div class="bingo-header">
-        <div>B</div><div>I</div><div>N</div><div>G</div><div>O</div>
+      <div class="current-ball-display">
+        <div class="big-ball" id="currentBall">-</div>
       </div>
-      <div class="bingo-body" id="bingoBody"></div>
+      <div style="font-size: 12px; color: #8b949e;">የወጡ፦ <span id="calledCount" style="color:white; font-weight:bold;">0</span>/75</div>
     </div>
-    <button class="bingo-btn" onclick="claimBingo()">BINGO! 🎯</button>
+  </div>
+
+  <!-- MAIN VIEW -->
+  <div class="main-content">
+    
+    <!-- LOBBY VIEW: 400 CARDS SELECTION -->
+    <div id="lobbyView">
+      <div style="text-align: center; font-size: 13px; color: #8b949e; margin-bottom: 10px;">
+        እባክዎ ከ 1 እስከ 400 ካሉት ካርቴላዎች ይምረጡ (አንዱ 10 ETB)
+      </div>
+      <div class="cards-grid-400" id="cardsGrid400"></div>
+    </div>
+
+    <!-- GAME PLAY VIEW -->
+    <div class="game-play-area" id="playingView">
+      <div class="bingo-card-container">
+        <div class="card-header-info">
+          <span>ካርቴላ ቁጥር፦ <strong id="activeCardNo">#0</strong></span>
+          <span>CherBingo</span>
+        </div>
+        <div class="bingo-header-letters">
+          <div>B</div><div>I</div><div>N</div><div>G</div><div>O</div>
+        </div>
+        <div class="bingo-grid" id="bingoGridBody"></div>
+      </div>
+
+      <button class="claim-bingo-btn" onclick="claimBingo()">BINGO! 🎯</button>
+    </div>
+
   </div>
 
   <footer>
-    Chernet Bingo System &copy; 2026 | All Rights Reserved
+    Chernet Bingo 400 Players System &copy; 2026
   </footer>
 
   <script>
     const tg = window.Telegram?.WebApp;
     if (tg) tg.expand();
 
+    // Backend Connection (የ Render backend URL)
     const socket = io("https://cherbingo-backend.onrender.com");
 
     const user = tg?.initDataUnsafe?.user || {
       id: "1136433526",
-      first_name: "Demo Player"
+      first_name: "Player"
     };
 
     let selectedCards = [];
@@ -333,16 +366,18 @@
     document.getElementById('userName').innerText = user.first_name;
     document.getElementById('userAvatar').innerText = user.first_name.charAt(0).toUpperCase();
 
+    // 1. Fetch User Balance
     socket.emit('getUserBalance', { userId: user.id });
 
     socket.on('userBalanceUpdate', (data) => {
       document.getElementById('userBalance').innerText = `${data.balance.toFixed(2)} ETB`;
     });
 
-    const cardsGrid = document.getElementById('cardsGrid');
-    for (let i = 1; i <= 100; i++) {
+    // 2. Generate 400 Cards in Lobby Grid
+    const cardsGrid = document.getElementById('cardsGrid400');
+    for (let i = 1; i <= 400; i++) {
       const btn = document.createElement('div');
-      btn.className = 'card-btn';
+      btn.className = 'card-item';
       btn.innerText = i;
       btn.id = `card-${i}`;
       btn.onclick = () => toggleCardSelection(i);
@@ -375,12 +410,13 @@
       alert(data.message);
     });
 
+    // 3. Sync Room State (Sold Cards, Players, Derash)
     socket.on('roomState', (data) => {
       document.getElementById('timerVal').innerText = data.timeLeft;
       document.getElementById('playersCount').innerText = data.playersCount;
       document.getElementById('derashVal').innerText = data.derash;
 
-      for (let i = 1; i <= 100; i++) {
+      for (let i = 1; i <= 400; i++) {
         const btn = document.getElementById(`card-${i}`);
         if (!btn) continue;
         
@@ -398,11 +434,13 @@
       }
     });
 
+    // 4. Game Started Event
     socket.on('gameStarted', () => {
       document.getElementById('lobbyView').style.display = 'none';
       document.getElementById('playingView').style.display = 'flex';
       
       if (selectedCards.length > 0) {
+        document.getElementById('activeCardNo').innerText = `#${selectedCards[0]}`;
         socket.emit('getCardData', { cardNum: selectedCards[0] });
       }
     });
@@ -413,12 +451,12 @@
     });
 
     function renderBingoBoard(cardArray) {
-      const body = document.getElementById('bingoBody');
-      body.innerHTML = '';
+      const grid = document.getElementById('bingoGridBody');
+      grid.innerHTML = '';
       
       cardArray.forEach((val) => {
         const cell = document.createElement('div');
-        cell.className = 'cell';
+        cell.className = 'bingo-cell';
         
         if (val === '★') {
           cell.innerText = '★';
@@ -429,10 +467,11 @@
             cell.classList.add('marked');
           }
         }
-        body.appendChild(cell);
+        grid.appendChild(cell);
       });
     }
 
+    // 5. New Ball Drawn Event
     socket.on('newBall', (data) => {
       calledNumbersSet.add(data.num);
       
@@ -441,30 +480,24 @@
       
       document.getElementById('calledCount').innerText = data.ballsCalled;
 
-      const historyContainer = document.getElementById('historyBalls');
-      const smallBall = document.createElement('div');
-      smallBall.className = 'small-ball';
-      smallBall.innerText = data.num;
-      historyContainer.prepend(smallBall);
-
       if (currentCardData.length > 0) {
         renderBingoBoard(currentCardData);
       }
     });
 
+    // 6. Reset Room
     socket.on('roomReset', () => {
       selectedCards = [];
       calledNumbersSet.clear();
       currentCardData = [];
       document.getElementById('lobbyView').style.display = 'block';
       document.getElementById('playingView').style.display = 'none';
-      document.getElementById('historyBalls').innerHTML = '';
       document.getElementById('currentBall').innerText = '-';
       document.getElementById('calledCount').innerText = '0';
     });
 
     function claimBingo() {
-      alert("🎯 BINGO ጥያቄዎ ለሲስተሙ ተልኳል! በመረጣቸው ቁጥሮች ላይ እየተረጋገጠ ነው።");
+      alert("🎯 BINGO! ጥያቄዎ ወደ ሰርቨሩ ተልኳል፤ በመረጣቸው ቁጥሮች ላይ እየተረጋገጠ ነው።");
     }
   </script>
 </body>
